@@ -133,19 +133,33 @@ public class NotificationManager {
             return;
         }
 
-        final Audience audience = mcMMO.getAudiences().player(player);
-
         Component notificationTextComponent = customEvent.getNotificationTextComponent();
         if (customEvent.getChatMessageType() == McMMOMessageType.ACTION_BAR) {
-            audience.sendActionBar(notificationTextComponent);
+            mcMMO.p.getFoliaLib().getScheduler().runAtEntity(player, t -> {
+                final Audience audience = mcMMO.getAudiences().player(player);
+                audience.sendActionBar(notificationTextComponent);
 
-            // If the message is being sent to the action bar we need to check if a copy is also sent to the chat system
-            if (customEvent.isMessageAlsoBeingSentToChat()) {
-                //Send copy to chat system
-                audience.sendMessage(notificationTextComponent);
-            }
+                // Fallback for servers/clients where Adventure action bar is intercepted
+                try {
+                    String legacyText = LegacyComponentSerializer.legacySection()
+                            .serialize(notificationTextComponent);
+                    player.spigot().sendMessage(
+                            net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                            net.md_5.bungee.api.chat.TextComponent.fromLegacyText(legacyText));
+                } catch (Throwable ignored) {
+                }
+
+                // If the message is being sent to the action bar we need to check if a copy is also sent to the chat system
+                if (customEvent.isMessageAlsoBeingSentToChat()) {
+                    //Send copy to chat system
+                    audience.sendMessage(notificationTextComponent);
+                }
+            });
         } else {
-            audience.sendMessage(notificationTextComponent);
+            mcMMO.p.getFoliaLib().getScheduler().runAtEntity(player, t -> {
+                final Audience audience = mcMMO.getAudiences().player(player);
+                audience.sendMessage(notificationTextComponent);
+            });
         }
     }
 
